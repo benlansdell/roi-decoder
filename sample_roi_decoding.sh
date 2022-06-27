@@ -24,7 +24,7 @@ SCALE_FACTOR=64
 ########################################
 ########################################
 
-$CAIMAN_PYTHON roi_decoder_online_cli.py $DIR_IN $TONE_FILE $OUTPUT_FILE \
+$CAIMAN_PYTHON roi_decoder_cli.py $DIR_IN $TONE_FILE $OUTPUT_FILE \
                                 --plotpath $PLOT_PATH \
                                 --scalefactor $SCALE_FACTOR \
                                 --roisize $ROI_SIZE
