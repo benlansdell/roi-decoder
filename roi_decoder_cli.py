@@ -218,6 +218,10 @@ def main(args):
 
     basename = os.path.basename(tif_name).split('.')[0]
 
+    #Get base dir names 
+    os.makedirs(os.path.dirname(out_path), exist_ok = True)
+    os.makedirs(os.path.dirname(plot_path), exist_ok = True)
+
     if plot_path is not None:
         fig, _ = plot_decoder(f1_scores, im, grid_dim = grid_dim, title = "F1 scores", box_size = box_size, freq_labels = all_tones[1:])
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_f1_score.png'
