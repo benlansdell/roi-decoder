@@ -27,12 +27,13 @@ parser.add_argument("--scalefactor", type=int, default = 128, help="Downsize ima
 parser.add_argument("--roisize", type=int, default = 4, help="Dimension of ROI for each decoder, in units of pixels in the downsized image")
 parser.add_argument("--nframes", type=int, default = None, help="Number of frames to train decoder on. If not provided, use all available")
 
-# args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/TSeries-04052022-roiscan-003/",
-#                         "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/04052022roiscan3.csv",
-#                         "./roi_decoder_trial_run_results/roi_decoding_output_scan3.pkl",
-#                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_scan3_plot",
-#                         "--scalefactor", "64",
-#                         "--roisize", "4"])
+#Where to save results and plots to
+args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/TSeries-06282022-roiscan-001/",
+                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/06282022roiscan1.csv",
+                        "./roi_decoder_trial_run_results/roi_decoding_output_scan1.pkl",
+                        "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_scan1_plot",
+                        "--scalefactor", "64",
+                        "--roisize", "4"])
 
 MLModel = LogisticRegression
 
@@ -99,6 +100,8 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
         #Hmm we only have the first frame, try something else to get the full stack:
         reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
         im = np.squeeze(reader.data)
+
+    im = im[im.sum(axis = 1).sum(axis = 1) > 0,:,:]
 
     end_time = time.time()
     print(f"{int(end_time - start_time)} seconds to load tiff stack.")
