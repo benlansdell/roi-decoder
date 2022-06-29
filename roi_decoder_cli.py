@@ -28,8 +28,8 @@ parser.add_argument("--roisize", type=int, default = 4, help="Dimension of ROI f
 parser.add_argument("--nframes", type=int, default = None, help="Number of frames to train decoder on. If not provided, use all available")
 
 #Where to save results and plots to
-args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/TSeries-06282022-roiscan-001/",
-                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/06282022roiscan1.csv",
+args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/TSeries-06282022s-002/",
+                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/06282022roiscan2.csv",
                         "./roi_decoder_trial_run_results/roi_decoding_output_scan1.pkl",
                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_scan1_plot",
                         "--scalefactor", "64",
@@ -48,12 +48,15 @@ def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_la
     demo_frame = 10
     fig, ax = plt.subplots(2,2,figsize=(16,16))
     im_dim = im.shape[1]
+
+    max_score = np.max(plt_data[:,:,1:])
+
     for idx in range(4):
         i,j = idx//2, idx%2
         ax[i,j].imshow(im[demo_frame,:,:], cmap = 'gray', extent = (0, im_dim, 0, im_dim))
 
         axins = ax[i,j].inset_axes([(box_size-1)/units, (box_size-1)/units, (units-2*box_size+2)/units, (units-2*box_size+2)/units])
-        cols = axins.imshow(plt_data[:,:,idx+1], extent = (im_dim*(box_size/units), im_dim*(1-box_size/units), im_dim*(box_size/units), im_dim*(1-box_size/units)), alpha = 0.5, vmin = 0, vmax = 0.75)
+        cols = axins.imshow(plt_data[:,:,idx+1], extent = (im_dim*(box_size/units), im_dim*(1-box_size/units), im_dim*(box_size/units), im_dim*(1-box_size/units)), alpha = 0.6, vmin = 0, vmax = max_score, cmap = 'plasma')
 
         axins.axis('off');
         ax[i,j].axis('off');
