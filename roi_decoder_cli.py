@@ -26,6 +26,7 @@ parser.add_argument("--plotpath", type = str, default = None, help = "Filename t
 parser.add_argument("--scalefactor", type=int, default = 128, help="Downsize image by this factor")
 parser.add_argument("--roisize", type=int, default = 4, help="Dimension of ROI for each decoder, in units of pixels in the downsized image")
 parser.add_argument("--nframes", type=int, default = None, help="Number of frames to train decoder on. If not provided, use all available")
+parser.add_argument("--transparent", default = False, action = 'store_true', help="Use transparent background for plot")
 
 #Where to save results and plots to
 args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/TSeries-06282022s-002/",
@@ -33,7 +34,7 @@ args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakh
                         "./roi_decoder_trial_run_results/roi_decoding_output_scan1.pkl",
                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_scan1_plot",
                         "--scalefactor", "64",
-                        "--roisize", "4"])
+                        "--roisize", "4", "--transparent"])
 
 MLModel = LogisticRegression
 
@@ -43,7 +44,9 @@ def warn(*args, **kwargs):
 import warnings
 warnings.warn = warn
 
-def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None):
+MASK_BELOW = 0.1
+
+def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None, transparent = False):
     units = grid_dim*2
     demo_frame = 10
     fig, ax = plt.subplots(2,2,figsize=(16,16))
@@ -53,13 +56,35 @@ def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_la
 
     for idx in range(4):
         i,j = idx//2, idx%2
-        ax[i,j].imshow(im[demo_frame,:,:], cmap = 'gray', extent = (0, im_dim, 0, im_dim))
+
+        #Draw a sample frame
+        if transparent == False:
+            ax[i,j].imshow(im[demo_frame,:,:], cmap = 'gray', extent = (0, im_dim, 0, im_dim))
+        else:
+            #Draw blank space
+            ax[i,j].imshow(np.zeros((*im.shape[1:], 4)), extent = (0, im_dim, 0, im_dim))
 
         axins = ax[i,j].inset_axes([(box_size-1)/units, (box_size-1)/units, (units-2*box_size+2)/units, (units-2*box_size+2)/units])
-        cols = axins.imshow(plt_data[:,:,idx+1], extent = (im_dim*(box_size/units), im_dim*(1-box_size/units), im_dim*(box_size/units), im_dim*(1-box_size/units)), alpha = 0.6, vmin = 0, vmax = max_score, cmap = 'plasma')
+
+        masked_data = np.ma.masked_where(plt_data[:,:,idx+1] < MASK_BELOW, plt_data[:,:,idx+1])
+
+        cols = axins.imshow(masked_data, 
+                            extent = (im_dim*(box_size/units), im_dim*(1-box_size/units), im_dim*(box_size/units), im_dim*(1-box_size/units)), 
+                            alpha = 0.6, 
+                            vmin = 0, 
+                            vmax = max_score, 
+                            cmap = 'plasma')
 
         axins.axis('off');
-        ax[i,j].axis('off');
+
+        if not transparent:
+            ax[i,j].axis('off');
+        else:
+            ax[i,j].axis('on');
+            ax[i,j].set_xticks([])
+            ax[i,j].set_yticks([])
+            ax[i,j].set_xticklabels([])
+            ax[i,j].set_yticklabels([])
 
         divider = make_axes_locatable(ax[i,j])
         cax = divider.append_axes('right', size='5%', pad=0.05)
@@ -162,6 +187,9 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
     ## Box size calcs
     n_grid_pts = grid_dim+1-box_size
 
+    unique_tones = np.unique(tone_labels)
+    unique_tones = sorted(unique_tones[unique_tones != '0.0'], key = lambda x: int(x))
+
     for i in tqdm(range(n_grid_pts)):
         f1_row = []
         re_row = []
@@ -169,18 +197,41 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
         acc_row = []
         for j in range(n_grid_pts):
             data = grid_downscaled[:,i:(i+box_size),j:(j+box_size)].reshape((-1, box_size*box_size))
-            model = MLModel()
             splitter = KFold(n_splits=5, shuffle = False)
-            pred_prob_tones = cross_val_predict(model, data, tone_labels, cv = splitter)
-            recall = recall_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
-            prec = precision_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
-            f1 = f1_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
-            acc = accuracy_score(tone_labels, pred_prob_tones)
+            model = MLModel()
 
-            f1_row.append(f1)
-            pr_row.append(prec)
-            re_row.append(recall)
-            acc_row.append(acc)
+            f1_col = [0]
+            re_col = [0]
+            pr_col = [0]
+            acc_col = [0]
+
+            for idx in range(len(unique_tones)):
+                model = MLModel(class_weight = 'balanced')
+                tone_labels_i = (tone_labels == unique_tones[idx])
+                pred_prob_tones = cross_val_predict(model, data, tone_labels_i, cv = splitter)
+                recall = recall_score(tone_labels_i, pred_prob_tones)
+                prec = precision_score(tone_labels_i, pred_prob_tones)
+                f1 = f1_score(tone_labels_i, pred_prob_tones)
+                acc = accuracy_score(tone_labels_i, pred_prob_tones)
+                f1_col.append(f1)
+                re_col.append(recall)
+                pr_col.append(prec)
+                acc_col.append(acc)
+
+            f1_row.append(f1_col)
+            pr_row.append(pr_col)
+            re_row.append(re_col)
+            acc_row.append(acc_col)
+
+            # pred_prob_tones = cross_val_predict(model, data, tone_labels, cv = splitter)
+            # recall = recall_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
+            # prec = precision_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
+            # f1 = f1_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
+            # acc = accuracy_score(tone_labels, pred_prob_tones)
+            # f1_row.append(f1)
+            # pr_row.append(prec)
+            # re_row.append(recall)
+            # acc_row.append(acc)
 
         f1_scores.append(f1_row)
         re_scores.append(re_row)
@@ -198,7 +249,7 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
     
     # pred_prob_all = cross_val_predict(model, im_downscaled_, labels, cv = splitter)
     # overall_f1 = f1_score(labels, pred_prob_all)
-    overall_f1
+    # overall_f1
 
     return f1_scores, re_scores, pr_scores, acc_scores, im, n_frames, overall_f1, grid_dim, all_tones
 
@@ -208,6 +259,7 @@ def main(args):
     tif_name = args.tifname
     plot_path = args.plotpath
     out_path = args.outputfile
+    transparent = args.transparent
 
     scale_factor = args.scalefactor
     box_size = args.roisize
@@ -226,17 +278,17 @@ def main(args):
     os.makedirs(os.path.dirname(plot_path), exist_ok = True)
 
     if plot_path is not None:
-        fig, _ = plot_decoder(f1_scores, im, grid_dim = grid_dim, title = "F1 scores", box_size = box_size, freq_labels = all_tones[1:])
+        fig, _ = plot_decoder(f1_scores, im, grid_dim = grid_dim, title = "F1 scores", box_size = box_size, freq_labels = all_tones[1:], transparent = transparent)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_f1_score.png'
-        fig.savefig(fn_out)
+        fig.savefig(fn_out, transparent=transparent)
 
-        fig, _ = plot_decoder(pr_scores, im, grid_dim = grid_dim, title = "Precision scores", box_size = box_size, freq_labels = all_tones[1:])
+        fig, _ = plot_decoder(pr_scores, im, grid_dim = grid_dim, title = "Precision scores", box_size = box_size, freq_labels = all_tones[1:], transparent = transparent)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_precision.png'
-        fig.savefig(fn_out)
+        fig.savefig(fn_out, transparent=transparent)
 
-        fig, _ = plot_decoder(re_scores, im, grid_dim = grid_dim, title = "Recall scores", box_size = box_size, freq_labels = all_tones[1:])
+        fig, _ = plot_decoder(re_scores, im, grid_dim = grid_dim, title = "Recall scores", box_size = box_size, freq_labels = all_tones[1:], transparent = transparent)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_recall.png'
-        fig.savefig(fn_out)
+        fig.savefig(fn_out, transparent=transparent)
 
     end_time = time.time()
 

@@ -24,7 +24,14 @@ SCALE_FACTOR=64
 ########################################
 ########################################
 
+## With transparent background and no sample frame
 $CAIMAN_PYTHON roi_decoder_cli.py $DIR_IN $TONE_FILE $OUTPUT_FILE \
                                 --plotpath $PLOT_PATH \
                                 --scalefactor $SCALE_FACTOR \
-                                --roisize $ROI_SIZE
+                                --roisize $ROI_SIZE --transparent
+
+## With non-transparent background and a sample frame
+# $CAIMAN_PYTHON roi_decoder_cli.py $DIR_IN $TONE_FILE $OUTPUT_FILE \
+#                                 --plotpath $PLOT_PATH \
+#                                 --scalefactor $SCALE_FACTOR \
+#                                 --roisize $ROI_SIZE
