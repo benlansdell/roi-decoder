@@ -44,7 +44,7 @@ def warn(*args, **kwargs):
 import warnings
 warnings.warn = warn
 
-MASK_BELOW = 0.1
+MASK_BELOW = 0.01
 
 def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None, transparent = False):
     units = grid_dim*2
@@ -198,15 +198,18 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
         for j in range(n_grid_pts):
             data = grid_downscaled[:,i:(i+box_size),j:(j+box_size)].reshape((-1, box_size*box_size))
             splitter = KFold(n_splits=5, shuffle = False)
+            #model = MLModel(class_weight='balanced')
             model = MLModel()
 
+            #Separate decoder for each tone
             f1_col = [0]
             re_col = [0]
             pr_col = [0]
             acc_col = [0]
 
             for idx in range(len(unique_tones)):
-                model = MLModel(class_weight = 'balanced')
+                #model = MLModel(class_weight = 'balanced')
+                model = MLModel()
                 tone_labels_i = (tone_labels == unique_tones[idx])
                 pred_prob_tones = cross_val_predict(model, data, tone_labels_i, cv = splitter)
                 recall = recall_score(tone_labels_i, pred_prob_tones)
@@ -223,6 +226,7 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
             re_row.append(re_col)
             acc_row.append(acc_col)
 
+            # # One decoder for all tones
             # pred_prob_tones = cross_val_predict(model, data, tone_labels, cv = splitter)
             # recall = recall_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
             # prec = precision_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
