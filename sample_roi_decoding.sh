@@ -11,8 +11,8 @@ PATH_IN=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_scre
 TONE_FILE=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/04052022roiscan1.csv
 
 ## NOTE
-## If you provide a directory, the script will process all tiff files in that directory.
-## If you provide a path to a specific tiff file, the script will only process that one (presumed multi-frame) tiff file.
+# * If you provide a directory in $PATH_IN, the script will look for a file named [something]_000001.ome.tif, and load that as the first frame.
+# * If you provide a path to a specific tiff file in $PATH_IN, the script will try to treat this as the first frame in a tiff stack. This can be either a single, multi-page tiff, or the first frame of a stack of files. If the latter, this file must indeed be the first frame of that stack (having metadata that points to the rest of the files). 
 
 #Where to save results and plots to
 OUTPUT_FILE=./roi_decoder_trial_run_results/roi_decoding_output_scan1.pkl

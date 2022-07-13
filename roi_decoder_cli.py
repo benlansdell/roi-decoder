@@ -33,20 +33,20 @@ parser.add_argument("--transparent", default = False, action = 'store_true', hel
 
 #Where to save results and plots to
 ## Test paths for stabilized images
-# args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/07062022/StabilizedOutput07062022/07062022/TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif",
-#                         "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/07062022/roiscan1.csv",
-#                         "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1.pkl",
-#                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1_plot",
-#                         "--scalefactor", "64",
-#                         "--roisize", "4", "--transparent"])
-
-## Test paths for unstabilized images
-args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/TSeries-04052022-roiscan-001/",
-                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/04052022roiscan1.csv",
+args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/07062022/StabilizedOutput07062022/07062022/TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif",
+                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/07062022/roiscan1.csv",
                         "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1.pkl",
                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1_plot",
                         "--scalefactor", "64",
                         "--roisize", "4", "--transparent"])
+
+## Test paths for unstabilized images
+# args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/TSeries-04052022-roiscan-001/",
+#                         "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/04052022roiscan1.csv",
+#                         "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1.pkl",
+#                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1_plot",
+#                         "--scalefactor", "64",
+#                         "--roisize", "4", "--transparent"])
 
 MLModel = LogisticRegression
 
@@ -129,24 +129,23 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
 
         print('Loading', tiff_fn)
         if len(tiff_fn) == 0: 
-            raise ValueError("Failed to find files")
+            raise ValueError("Failed to find any file matching *_000001.ome.tif in provided directory")
         tiff_fn = tiff_fn[0]
-
-        # Import the image
-        im = skimage.io.imread(tiff_fn)
-
-        if len(im.shape) == 2:
-            #Hmm we only have the first frame, try something else to get the full stack:
-            reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
-            im = np.squeeze(reader.data)
     ##Read a single tiff file
     else:
         tiff_fn = tif_name
         tiff_dir = os.path.dirname(tiff_fn)
         print("tiff dir", tiff_dir)
         print("tiff fn", tiff_fn)
-        # Import the image
-        im = skimage.io.imread(tiff_fn)
+
+    # Import the image
+    im = skimage.io.imread(tiff_fn)
+
+    #Hmm we only have the first frame, try something else to get the full stack:
+    if len(im.shape) == 2:
+        print("Only loaded one frame, attempting to load the rest with TiffGlobReader. For this to work, {tiff_dir}/*.tif must correspond to the files you want to process.")
+        reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
+        im = np.squeeze(reader.data)
 
     im = im[im.sum(axis = 1).sum(axis = 1) > 0,:,:]
 
