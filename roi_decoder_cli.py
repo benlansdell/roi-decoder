@@ -16,6 +16,9 @@ from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_sc
 from aicsimageio.readers import TiffGlobReader
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from skimage.io import imread, imsave
+from joblib import Parallel, delayed
+
 from sklearn.linear_model import LogisticRegression
 
 parser = argparse.ArgumentParser("ROI decoder")
@@ -29,10 +32,19 @@ parser.add_argument("--nframes", type=int, default = None, help="Number of frame
 parser.add_argument("--transparent", default = False, action = 'store_true', help="Use transparent background for plot")
 
 #Where to save results and plots to
-args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/TSeries-06282022s-002/",
-                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/06282022/06282022roiscan2.csv",
-                        "./roi_decoder_trial_run_results/roi_decoding_output_scan1.pkl",
-                        "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_scan1_plot",
+## Test paths for stabilized images
+# args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/07062022/StabilizedOutput07062022/07062022/TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif",
+#                         "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/07062022/roiscan1.csv",
+#                         "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1.pkl",
+#                         "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1_plot",
+#                         "--scalefactor", "64",
+#                         "--roisize", "4", "--transparent"])
+
+## Test paths for unstabilized images
+args = parser.parse_args(["/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/TSeries-04052022-roiscan-001/",
+                        "/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/04052022/04052022roiscan1.csv",
+                        "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1.pkl",
+                        "--plotpath", "./roi_decoder_trial_run_results/roi_decoding_output_stabilized_scan1_plot",
                         "--scalefactor", "64",
                         "--roisize", "4", "--transparent"])
 
@@ -101,33 +113,40 @@ def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_la
 def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
                             scale_factor = 128):
 
-    tiff_dir = os.path.dirname(tif_name)
-    print("tiff dir", tiff_dir)
-    tiff_fn = glob(f'{tiff_dir}/*_000001.ome.tif')
-    print("tiff fn", tiff_fn)
-
-
-    from skimage.io import imread, imsave
-    from joblib import Parallel, delayed
-
     def read_images(image_paths_list):
         images = Parallel(n_jobs=20, verbose=5)(
             delayed(lambda x: imread(x, img_num=0))(f) for f in image_paths_list
         )
         return images
-        
-    print('Loading', tiff_fn)
+
     start_time = time.time()
-    if len(tiff_fn) == 0: print("Failed to find files")
-    tiff_fn = tiff_fn[0]
+    ##Read a directory of tiff files
+    if os.path.isdir(tif_name):
+        tiff_dir = os.path.dirname(tif_name)
+        print("tiff dir", tiff_dir)
+        tiff_fn = glob(f'{tiff_dir}/*_000001.ome.tif')
+        print("tiff fn", tiff_fn)
 
-    # Import the image
-    im = skimage.io.imread(tiff_fn)
+        print('Loading', tiff_fn)
+        if len(tiff_fn) == 0: 
+            raise ValueError("Failed to find files")
+        tiff_fn = tiff_fn[0]
 
-    if len(im.shape) == 2:
-        #Hmm we only have the first frame, try something else to get the full stack:
-        reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
-        im = np.squeeze(reader.data)
+        # Import the image
+        im = skimage.io.imread(tiff_fn)
+
+        if len(im.shape) == 2:
+            #Hmm we only have the first frame, try something else to get the full stack:
+            reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
+            im = np.squeeze(reader.data)
+    ##Read a single tiff file
+    else:
+        tiff_fn = tif_name
+        tiff_dir = os.path.dirname(tiff_fn)
+        print("tiff dir", tiff_dir)
+        print("tiff fn", tiff_fn)
+        # Import the image
+        im = skimage.io.imread(tiff_fn)
 
     im = im[im.sum(axis = 1).sum(axis = 1) > 0,:,:]
 
@@ -152,8 +171,7 @@ def build_localized_decoder(tone_file, tif_name, box_size = 4, n_frames = None,
     try:
         im_downscaled = np.zeros((im.shape[0], im.shape[1]//scale_factor, im.shape[2]//scale_factor))
     except IndexError:
-        print("Couldn't load full tiff stack. Exiting")
-        return 
+        IndexError("Couldn't load full tiff stack. Exiting")
 
     grid_dim = im_downscaled.shape[1]
 
