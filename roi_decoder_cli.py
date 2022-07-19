@@ -30,6 +30,7 @@ parser.add_argument("--scalefactor", type=int, default = 128, help="Downsize ima
 parser.add_argument("--roisize", type=int, default = 4, help="Dimension of ROI for each decoder, in units of pixels in the downsized image")
 parser.add_argument("--nframes", type=int, default = None, help="Number of frames to train decoder on. If not provided, use all available")
 parser.add_argument("--transparent", default = False, action = 'store_true', help="Use transparent background for plot")
+parser.add_argument("--plotbounds", default = None, type = str, help="Comma separated tuple of min and max values for plotting. If not provided, use 0 and max of data")
 
 #Where to save results and plots to
 ## Test paths for stabilized images
@@ -58,13 +59,20 @@ warnings.warn = warn
 
 MASK_BELOW = 0.01
 
-def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None, transparent = False):
+def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None, transparent = False, plotbounds = None):
     units = grid_dim*2
     demo_frame = 10
     fig, ax = plt.subplots(2,2,figsize=(16,16))
     im_dim = im.shape[1]
 
     max_score = np.max(plt_data[:,:,1:])
+
+    if plotbounds is None:
+        mask_below = MASK_BELOW
+        bounds = (0, max_score)
+    else:
+        mask_below = plotbounds[0]
+        bounds = plotbounds
 
     for idx in range(4):
         i,j = idx//2, idx%2
@@ -78,13 +86,13 @@ def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_la
 
         axins = ax[i,j].inset_axes([(box_size-1)/units, (box_size-1)/units, (units-2*box_size+2)/units, (units-2*box_size+2)/units])
 
-        masked_data = np.ma.masked_where(plt_data[:,:,idx+1] < MASK_BELOW, plt_data[:,:,idx+1])
+        masked_data = np.ma.masked_where(plt_data[:,:,idx+1] < mask_below, plt_data[:,:,idx+1])
 
         cols = axins.imshow(masked_data, 
                             extent = (im_dim*(box_size/units), im_dim*(1-box_size/units), im_dim*(box_size/units), im_dim*(1-box_size/units)), 
                             alpha = 0.6, 
-                            vmin = 0, 
-                            vmax = max_score, 
+                            vmin = bounds[0], 
+                            vmax = bounds[1], 
                             cmap = 'plasma')
 
         axins.axis('off');
@@ -285,6 +293,7 @@ def main(args):
     scale_factor = args.scalefactor
     box_size = args.roisize
     n_frame = args.nframes
+    plotbounds = [float(x) for x in args.plotbounds.split(',')]
 
     start_time = time.time()
     f1_scores, re_scores, pr_scores, acc_scores, im, n_frame, overall_f1, grid_dim, all_tones = \
@@ -299,15 +308,36 @@ def main(args):
     os.makedirs(os.path.dirname(plot_path), exist_ok = True)
 
     if plot_path is not None:
-        fig, _ = plot_decoder(f1_scores, im, grid_dim = grid_dim, title = "F1 scores", box_size = box_size, freq_labels = all_tones[1:], transparent = transparent)
+        fig, _ = plot_decoder(f1_scores, 
+                              im, 
+                              grid_dim = grid_dim, 
+                              title = "F1 scores", 
+                              box_size = box_size, 
+                              freq_labels = all_tones[1:], 
+                              transparent = transparent,
+                              plotbounds = plotbounds)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_f1_score.png'
         fig.savefig(fn_out, transparent=transparent)
 
-        fig, _ = plot_decoder(pr_scores, im, grid_dim = grid_dim, title = "Precision scores", box_size = box_size, freq_labels = all_tones[1:], transparent = transparent)
+        fig, _ = plot_decoder(pr_scores, 
+                              im, 
+                              grid_dim = grid_dim, 
+                              title = "Precision scores", 
+                              box_size = box_size, 
+                              freq_labels = all_tones[1:], 
+                              transparent = transparent,
+                              plotbounds = plotbounds)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_precision.png'
         fig.savefig(fn_out, transparent=transparent)
 
-        fig, _ = plot_decoder(re_scores, im, grid_dim = grid_dim, title = "Recall scores", box_size = box_size, freq_labels = all_tones[1:], transparent = transparent)
+        fig, _ = plot_decoder(re_scores, 
+                              im, 
+                              grid_dim = grid_dim, 
+                              title = "Recall scores", 
+                              box_size = box_size, 
+                              freq_labels = all_tones[1:], 
+                              transparent = transparent,
+                              plotbounds = plotbounds)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_recall.png'
         fig.savefig(fn_out, transparent=transparent)
 
