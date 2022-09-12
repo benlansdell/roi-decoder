@@ -293,7 +293,10 @@ def main(args):
     scale_factor = args.scalefactor
     box_size = args.roisize
     n_frame = args.nframes
-    plotbounds = [float(x) for x in args.plotbounds.split(',')]
+    if args.plotbounds is not None:
+        plotbounds = [float(x) for x in args.plotbounds.split(',')]
+    else:
+        plotbounds = None
 
     start_time = time.time()
     f1_scores, re_scores, pr_scores, acc_scores, im, n_frame, overall_f1, grid_dim, all_tones = \

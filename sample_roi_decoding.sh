@@ -7,10 +7,12 @@ CAIMAN_PYTHON=/home/blansdel/anaconda3/envs/caiman/bin/python
 # Input data #
 ##############
 
-TONE_FILE=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/newdata/roiscan1.csv
+#TONE_FILE=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/newdata/roiscan1.csv
+TONE_FILE=/home/blansdel/projects/roi_decoder/demodata/roiscan1.csv
 
 #Process unstabilized data. Path is the whole folder of tiff files
-PATH_IN=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/newdata/TSeries-07062022-roiscan-001/
+#PATH_IN=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/newdata/TSeries-07062022-roiscan-001/
+PATH_IN=/home/blansdel/projects/roi_decoder/demodata/TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif
 
 ## Process stabilized image. Path is the specific file
 #PATH_IN=/media/core/core_operations/ImageAnalysisScratch/Zakharenko/Jay/ROI_screening_data/newdata/TSeries-07062022stable-001.tif
@@ -49,14 +51,14 @@ SCALE_FACTOR=16
 #                                 --roisize $ROI_SIZE
 
 ## With transparent background and no sample frame
-# $CAIMAN_PYTHON roi_decoder_cli.py $PATH_IN $TONE_FILE $OUTPUT_FILE \
-#                                 --plotpath $PLOT_PATH \
-#                                 --scalefactor $SCALE_FACTOR \
-#                                 --roisize $ROI_SIZE --transparent
+$CAIMAN_PYTHON roi_decoder_cli.py $PATH_IN $TONE_FILE $OUTPUT_FILE \
+                                 --plotpath $PLOT_PATH \
+                                 --scalefactor $SCALE_FACTOR \
+                                 --roisize $ROI_SIZE --transparent
 
 ## With transparent background and no sample frame, custom plotting range
-$CAIMAN_PYTHON roi_decoder_cli.py $PATH_IN $TONE_FILE $OUTPUT_FILE \
-                                --plotpath $PLOT_PATH \
-                                --scalefactor $SCALE_FACTOR \
-                                --roisize $ROI_SIZE --transparent \
-                                --plotbounds 0.1,0.5
+#$CAIMAN_PYTHON roi_decoder_cli.py $PATH_IN $TONE_FILE $OUTPUT_FILE \
+#                                --plotpath $PLOT_PATH \
+#                                --scalefactor $SCALE_FACTOR \
+#                                --roisize $ROI_SIZE --transparent \
+#                                --plotbounds 0.1,0.5
