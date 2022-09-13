@@ -54,7 +54,7 @@ SCALE_FACTOR=16
 $CAIMAN_PYTHON roi_decoder_cli.py $PATH_IN $TONE_FILE $OUTPUT_FILE \
                                  --plotpath $PLOT_PATH \
                                  --scalefactor $SCALE_FACTOR \
-                                 --roisize $ROI_SIZE --transparent
+                                 --roisize $ROI_SIZE --transparent \
 
 ## With transparent background and no sample frame, custom plotting range
 #$CAIMAN_PYTHON roi_decoder_cli.py $PATH_IN $TONE_FILE $OUTPUT_FILE \
