@@ -1,49 +1,41 @@
 #!/usr/bin/env python
 import os
-from glob import glob
-from turtle import onclick 
 import skimage.io
-from skimage.transform import downscale_local_mean, rescale, resize
 import numpy as np
-from tqdm import tqdm
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
 import argparse
 import time
+import warnings
+import streamlit as st
 
+from glob import glob
+from tqdm import tqdm
+
+from skimage.transform import downscale_local_mean
+from skimage.io import imread
 from sklearn.model_selection import cross_val_predict, KFold
 from sklearn.metrics import accuracy_score, f1_score, recall_score, precision_score
-from aicsimageio.readers import TiffGlobReader
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-from skimage.io import imread, imsave
-from joblib import Parallel, delayed
-
 from sklearn.linear_model import LogisticRegression
 
-import streamlit as st
-from directorypicker import st_directory_picker
+from aicsimageio.readers import TiffGlobReader
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from joblib import Parallel, delayed
 
-##Now all of these things are settings in the GUI (left panel)
+from directorypicker import st_file_selector
 
 parser = argparse.ArgumentParser("ROI decoder")
-parser.add_argument("tifname", type=str, help="Path to the tiff file to load")
-parser.add_argument("tonefile", type=str, help="Path to tone file")
-
-#Where to save results and plots to
-## Test paths for stabilized images
-args = parser.parse_args(["./demo_data/TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif", "./demo_data/roiscan1.csv"])
+parser.add_argument("--tifname", type=str, help="Path to the tiff file to load as a default", default = None)
+parser.add_argument("--tonefile", type=str, help="Path to tone file as a default", default = None)
 
 MLModel = LogisticRegression
+MASK_BELOW = 0.01
 
 #Suppress all warnings
 def warn(*args, **kwargs):
     pass
-import warnings
 warnings.warn = warn
-
-MASK_BELOW = 0.01
 
 def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None, transparent = False, plotbounds = None):
     units = grid_dim*2
@@ -103,22 +95,15 @@ def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_la
 
     return fig, ax
 
-@st.cache
+@st.cache(suppress_st_warning=True)
 def load_image(tif_name : str) -> np.ndarray:
     st.spinner(text="Loading image stack")
-    def read_images(image_paths_list):
-        images = Parallel(n_jobs=20, verbose=5)(
-            delayed(lambda x: imread(x, img_num=0))(f) for f in image_paths_list
-        )
-        return images
 
     start_time = time.time()
     ##Read a directory of tiff files
     if os.path.isdir(tif_name):
         tiff_dir = os.path.dirname(tif_name)
-        print("tiff dir", tiff_dir)
         tiff_fn = glob(f'{tiff_dir}/*_000001.ome.tif')
-        print("tiff fn", tiff_fn)
 
         print('Loading', tiff_fn)
         if len(tiff_fn) == 0:
@@ -128,19 +113,21 @@ def load_image(tif_name : str) -> np.ndarray:
     else:
         tiff_fn = tif_name
         tiff_dir = os.path.dirname(tiff_fn)
-        print("tiff dir", tiff_dir)
-        print("tiff fn", tiff_fn)
 
     # Import the image
-    im = skimage.io.imread(tiff_fn)
+    try:
+        im = skimage.io.imread(tiff_fn)
 
-    #Hmm we only have the first frame, try something else to get the full stack:
-    if len(im.shape) == 2:
-        print("Only loaded one frame, attempting to load the rest with TiffGlobReader. For this to work, {tiff_dir}/*.tif must correspond to the files you want to process.")
-        reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
-        im = np.squeeze(reader.data)
+        #Hmm we only have the first frame, try something else to get the full stack:
+        if len(im.shape) == 2:
+            print("Only loaded one frame, attempting to load the rest with TiffGlobReader. For this to work, {tiff_dir}/*.tif must correspond to the files you want to process.")
+            reader = TiffGlobReader(f'{tiff_dir}/*.tif', indexer = lambda x: pd.Series({'T':int(os.path.basename(x).split('_')[-1].split('.')[0])}))
+            im = np.squeeze(reader.data)
+        im = im[im.sum(axis = 1).sum(axis = 1) > 0,:,:]
 
-    im = im[im.sum(axis = 1).sum(axis = 1) > 0,:,:]
+    except:
+        st.warning("Failed to load image stack. Please check that the file is a valid tiff stack.")
+        im = None
 
     end_time = time.time()
     print(f"{int(end_time - start_time)} seconds to load tiff stack.")
@@ -150,17 +137,19 @@ def load_image(tif_name : str) -> np.ndarray:
 def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
                             scale_factor = 128):
 
+    empty_val = [None]*9
+
     if n_frames is not None:
         im = im[:n_frames,:,:]
     else:
         n_frames = im.shape[0]
-        
-    #Translate the image by half the frame
-    #for idx in range(n_frames):
-    #    im[idx,:,:] = np.roll(im[idx,:,:], -im.shape[1]//2, axis = 1)
-    
-    tones = pd.read_csv(tone_file, header = None, names = ['time', 'freq', 'atten'])
-    tones = tones[tones['time'] < (n_frames/10)]
+          
+    try:
+        tones = pd.read_csv(tone_file, header = None, names = ['time', 'freq', 'atten'])
+        tones = tones[tones['time'] < (n_frames/10)]
+    except:
+        st.warning("Failed to load tone file. Please check file is a valid csv file.")
+        return empty_val
 
     all_tones = ['0.0'] + [str(x) for x in sorted([int(x) for x in list(tones['freq'].unique())])]
 
@@ -220,7 +209,6 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
         for j in range(n_grid_pts):
             data = grid_downscaled[:,i:(i+box_size),j:(j+box_size)].reshape((-1, box_size*box_size))
             splitter = KFold(n_splits=5, shuffle = False)
-            #model = MLModel(class_weight='balanced')
             model = MLModel()
 
             #Separate decoder for each tone
@@ -230,7 +218,6 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
             acc_col = [0]
 
             for idx in range(len(unique_tones)):
-                #model = MLModel(class_weight = 'balanced')
                 model = MLModel()
                 tone_labels_i = (tone_labels == unique_tones[idx])
                 pred_prob_tones = cross_val_predict(model, data, tone_labels_i, cv = splitter)
@@ -248,17 +235,6 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
             re_row.append(re_col)
             acc_row.append(acc_col)
 
-            # # One decoder for all tones
-            # pred_prob_tones = cross_val_predict(model, data, tone_labels, cv = splitter)
-            # recall = recall_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
-            # prec = precision_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
-            # f1 = f1_score(tone_labels, pred_prob_tones, average = None, labels = all_tones)
-            # acc = accuracy_score(tone_labels, pred_prob_tones)
-            # f1_row.append(f1)
-            # pr_row.append(prec)
-            # re_row.append(recall)
-            # acc_row.append(acc)
-
         f1_scores.append(f1_row)
         re_scores.append(re_row)
         pr_scores.append(pr_row)
@@ -269,14 +245,10 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     pr_scores = np.array(pr_scores)
     acc_scores = np.array(acc_scores)
 
-    model = MLModel() #LogisticRegression()
+    model = MLModel()
     pred_prob_all = cross_val_predict(model, im_downscaled_, tone_labels, cv = splitter)
     overall_f1 = f1_score(tone_labels, pred_prob_all, average = None, labels = all_tones)
-    
-    # pred_prob_all = cross_val_predict(model, im_downscaled_, labels, cv = splitter)
-    # overall_f1 = f1_score(labels, pred_prob_all)
-    # overall_f1
-
+   
     return f1_scores, re_scores, pr_scores, acc_scores, im, n_frames, overall_f1, grid_dim, all_tones
 
 import matplotlib
@@ -303,7 +275,26 @@ def make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, box_size, all_tone
                         freq_labels = all_tones,
                         transparent = transparent,
                         plotbounds = plotbounds)
-    return fig_f1, fig_pr, fig_re
+
+    tmp_path = 'tmp_plots'
+    tmp_f1_path = os.path.join(tmp_path, 'f1.png')
+    tmp_pr_path = os.path.join(tmp_path, 'pr.png')
+    tmp_re_path = os.path.join(tmp_path, 're.png')
+    os.makedirs(tmp_path, exist_ok = True)
+    fig_f1.savefig(tmp_f1_path)
+    fig_pr.savefig(tmp_pr_path)
+    fig_re.savefig(tmp_re_path)
+
+    return tmp_f1_path, tmp_pr_path, tmp_re_path
+
+def on_load(tif_file, sound_file):
+    if os.path.exists(tif_file) and os.path.exists(sound_file):
+        st.session_state['tif_file'] = tif_file
+        st.session_state['sound_file'] = sound_file
+    if not os.path.exists(tif_file):
+        st.warning('Tif file not found')
+    if not os.path.exists(sound_file):
+        st.warning('Sound file not found')
 
 def st_main(args):
 
@@ -315,18 +306,35 @@ def st_main(args):
         fig_pr.savefig(fn_out, transparent=transparent)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_recall.png'
         fig_re.savefig(fn_out, transparent=transparent)
-    
+
     def results_button():
         os.makedirs(os.path.dirname(out_path), exist_ok = True)
         with open(out_path, 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+    #Default values to load
     tone_file = args.tonefile
     tif_name = args.tifname
 
     start_time = time.time()
-    all_frames = load_image(tif_name)
-    n_frames_total = len(all_frames)
+
+    with st.expander("Input", expanded = True):
+        tif_file = st_file_selector(st, key = 'tif', label = 'Choose tif file')
+        sound_file = st_file_selector(st, key = 'sound', label = 'Choose sound data')
+        st.button(label='Load', on_click = lambda: on_load(tif_file, sound_file))
+
+    selected_tif = st.session_state['tif_file'] if 'tif_file' in st.session_state else tif_name
+    selected_sound = st.session_state['sound_file'] if 'sound_file' in st.session_state else tone_file
+
+    if selected_tif is not None and selected_sound is not None:
+        all_frames = load_image(selected_tif)
+    else: 
+        all_frames = None
+
+    if all_frames is None: 
+        n_frames_total = 1
+    else:
+        n_frames_total = len(all_frames)
 
     st.sidebar.title("ROI decoder")
     form = st.sidebar.form(key='my_form')
@@ -347,11 +355,17 @@ def st_main(args):
         plotbounds = None
     submit = form.form_submit_button(label='Run')
 
-    if submit or plot_button or results_button:
+    if all_frames is None: 
+        st.warning('No tif file loaded')
+        return
+
+    if (submit or plot_button or results_button):
         f1_scores, re_scores, pr_scores, acc_scores, im, n_frame, overall_f1, grid_dim, all_tones = \
-                        build_localized_decoder(tone_file, all_frames, 
+                        build_localized_decoder(selected_sound, all_frames, 
                                                 box_size = box_size, n_frames = n_frame,
                                                 scale_factor = scale_factor)
+        if f1_scores is None:
+            return
     else: 
         #Return generate empty responses 
         f1_scores = np.zeros((1,1,1))
@@ -364,26 +378,21 @@ def st_main(args):
         grid_dim = 1
         all_tones = [0]
 
-    basename = os.path.basename(tif_name).split('.')[0]
+    basename = os.path.basename(selected_tif).split('.')[0]
 
-    fig_f1, fig_pr, fig_re = make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, box_size, all_tones[1:], transparent, plotbounds)
-
-    with st.expander("Input", expanded = True):
-        input_form = st.form(key='inputform')
-        st_directory_picker(base = input_form)
-        load_d = input_form.form_submit_button(label='Load')
+    tmp_path_f1, tmp_path_pr, tmp_path_re = make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, box_size, all_tones[1:], transparent, plotbounds)
 
     with st.expander("F1", expanded = True):
         st.markdown('<div style="text-align: center;">F1 scores</div>', unsafe_allow_html=True)
-        st.write(fig_f1)
+        st.image(tmp_path_f1)
 
     with st.expander("Precision"):
         st.markdown('<div style="text-align: center;">Precision scores</div>', unsafe_allow_html=True)
-        st.write(fig_pr)
+        st.image(tmp_path_pr)
 
     with st.expander("Recall"):
         st.markdown('<div style="text-align: center;">Recall scores</div>', unsafe_allow_html=True)
-        st.write(fig_re)
+        st.image(tmp_path_re)
 
     with st.expander("Output"):
         plot_path = st.text_input('Plot path', value = './roi_decoding_results', help = 'Directory to save the plots')
@@ -397,7 +406,6 @@ def st_main(args):
             'overall_f1': overall_f1}
 
     print(f"Total time: {int(end_time-start_time)} seconds. Decoded {n_frame} frames. Overall F1 scores: {overall_f1}")
-
 
 if __name__ == '__main__':
     args = parser.parse_args()
