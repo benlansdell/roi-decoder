@@ -1,7 +1,5 @@
 # ROI decoder
 
-<img width="1065" alt="Screen Shot 2022-09-15 at 2 12 52 AM" src="https://user-images.githubusercontent.com/7505975/190500757-f10a3bf4-984c-46b9-906c-fa0fc89cc423.png">
-
 Streamlit app that computes a coarse estimate of stimuli tuning for calcium imaging data -- can be used in a semi-online fashion, during recording sessions to find responsive areas to to record further from. 
 
 Takes a `tif` stack and a `csv` file with stimuli information and computes localized logistic regression based decoders to see which regions are sensitive to which stimulus.
@@ -39,3 +37,4 @@ Where in this case `5500`, `10000` are tones presented to the animal. These are 
 
 Set decoder parameters on the right and hit Run!
  
+![Kapture 2022-09-15 at 16 10 46](https://user-images.githubusercontent.com/7505975/190511929-08b0d2c5-4910-462d-bffa-ff2aa23d949f.gif)
