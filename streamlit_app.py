@@ -18,7 +18,14 @@ parser.add_argument("--pruning_dir", type=str, help="Path to the directory conta
 
 #Only runs on startup. Load previously selected paths
 @st.cache
-def set_directories():
+def first_set_directories():
+    print("Setting dirs")
+    last_used = get_last_directories_used()
+    st.session_state['tifcurr_dir'] = last_used['tiff']
+    st.session_state['soundcurr_dir'] = last_used['sound']
+
+def force_set_directories():
+    print("Setting dirs")
     last_used = get_last_directories_used()
     st.session_state['tifcurr_dir'] = last_used['tiff']
     st.session_state['soundcurr_dir'] = last_used['sound']
@@ -49,7 +56,9 @@ def st_main(args):
     tone_file = args.tonefile
     tif_name = args.tifname
 
-    set_directories()
+    if not 'tifcurr_dir' in st.session_state:
+        force_set_directories()
+    first_set_directories()
 
     start_time = time.time()
 
