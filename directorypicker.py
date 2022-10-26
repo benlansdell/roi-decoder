@@ -20,15 +20,16 @@ def st_file_selector(st_placeholder, path='.', label='Select a file/folder', key
         base_path = '.' if path is None or path is '' else path
         base_path = base_path if os.path.isdir(base_path) else os.path.dirname(base_path)
         base_path = '.' if base_path is None or base_path is '' else base_path
-
-        files = sorted(os.listdir(base_path))
-        files.insert(0, '..')
-        files.insert(0, '.')
-        st.session_state[key+'files'] = files
         st.session_state[key+'curr_dir'] = base_path
+
     else:
         base_path = st.session_state[key+'curr_dir']
 
+    files = sorted(os.listdir(base_path))
+    files.insert(0, '..')
+    files.insert(0, '.')
+    st.session_state[key+'files'] = files
+    
     selected_file = st_placeholder.selectbox(label=label, 
                                         options=st.session_state[key+'files'], 
                                         key=key, 
