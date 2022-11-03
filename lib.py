@@ -33,6 +33,7 @@ def get_last_directories_used():
         with open(last_directories_used_file, 'r') as f:
             directories = json.load(f)
     else:
+        print("Can't find file, defaulting")
         directories = {'tiff': '.', 'sound': '.'}
     return directories
 

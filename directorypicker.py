@@ -29,7 +29,7 @@ def st_file_selector(st_placeholder, path='.', label='Select a file/folder', key
     files.insert(0, '..')
     files.insert(0, '.')
     st.session_state[key+'files'] = files
-    
+    print(st.session_state)   
     selected_file = st_placeholder.selectbox(label=label, 
                                         options=st.session_state[key+'files'], 
                                         key=key, 
