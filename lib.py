@@ -154,7 +154,7 @@ def load_image(tif_name : str) -> np.ndarray:
 @st.cache(suppress_st_warning=True)
 def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
                             scale_factor = 128, use_pruned = False, im_file = None,
-                            prune_dir = None):
+                            prune_dir = None, decoder_offset = 0):
 
     empty_val = [None]*9
 
@@ -233,7 +233,9 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     im_downscaled_ = np.reshape(im_downscaled, (im_downscaled.shape[0], -1))
     im_downscaled_ = np.diff(im_downscaled_, axis = 0)
 
-    cue_indices = 4 + np.arange(0, im_downscaled_.shape[0], 10)
+    # Build the decoder
+    offset = decoder_offset + 4
+    cue_indices = offset + np.arange(0, im_downscaled_.shape[0], 10)
     cue_indices = cue_indices[cue_indices < im_downscaled_.shape[0]]
 
     labels = np.zeros(im_downscaled_.shape[0])
