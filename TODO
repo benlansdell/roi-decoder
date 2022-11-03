@@ -1,9 +1,12 @@
 # TODO
 
-* Make it so it can handle pruned recordings
+* Support for larger mesoscope images...?
 
 # Done
 
-* Plot all 6 frequencies (currently only plotting 4)
-* Allow me to save my choice of input pathways
-* Allow more flexibility in the CSV file format (current CSV files have three columns, TIME, FREQUENCY, ATTENUATION with first row a header).  I’m not asking to include attenuation as a variable… just have the GUI ignore the third column
+x Option to use additional frames for decoder
+x Choose output path for images
+x Make it so it can handle pruned recordings
+x Plot all 6 frequencies (currently only plotting 4)
+x Allow me to save my choice of input pathways
+x Allow more flexibility in the CSV file format (current CSV files have three columns, TIME, FREQUENCY, ATTENUATION with first row a header).  I’m not asking to include attenuation as a variable… just have the GUI ignore the third column

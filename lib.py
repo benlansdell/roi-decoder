@@ -153,41 +153,66 @@ def load_image(tif_name : str) -> np.ndarray:
 
 @st.cache(suppress_st_warning=True)
 def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
-                            scale_factor = 128, use_pruned = False, im_file = None):
+                            scale_factor = 128, use_pruned = False, im_file = None,
+                            prune_dir = None):
 
     empty_val = [None]*9
 
-    if n_frames is not None:
+    if n_frames is not None and not use_pruned:
         im = im[:n_frames,:,:]
     else:
         n_frames = im.shape[0]
-          
+                
     try:
         tones = pd.read_csv(tone_file, header = None, names = ['time', 'freq', 'atten'])
-        tones = tones[tones['time'] < (n_frames/10)]
     except:
         try:
             tones = pd.read_csv(tone_file)
             tones.columns = ['time', 'freq', 'atten']
-            tones = tones[tones['time'] < (n_frames/10)]
         except:
             st.warning("Failed to load tone file. Please check file is a valid csv file.")
             return empty_val
 
-    all_tones = ['0.0'] + [str(x) for x in sorted([int(x) for x in list(tones['freq'].unique())])]
-    print('Detected tones', all_tones)
-
-    ##If the image is pruned then we need to match it to the tone file
     if use_pruned:
-        ## 
+        #Compute tone vector, and only grab frames where are in OLDframe column in pruning file
         pass
-        #match image name with pruned image data 
+        #match: frameNumber_loolup_TSeries-01062022-001-autoclip_gaussin.csv
+        #to: TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif
+        im_file_stub = 'TSeries' + '_'.join(os.path.basename(im_file).split('TSeries')[1].split('_')[:1])
+        im_file_stub = im_file_stub.replace('-autoclip.tif', '')
+        prune_file = glob(f'{prune_dir}/*{im_file_stub}*.csv')
+        if len(prune_file) == 0:
+            st.warning("Failed to find a matching pruning file. Please check that the pruning directory is correct.")
+            return empty_val
+        if len(prune_file) > 1:
+            st.warning("Found multiple matching pruning files. Please check that the pruning directory is correct.")
+            return empty_val
+        prune_file = prune_file[0]
 
         #load in pruned frame data 
+        prune_data = pd.read_csv(prune_file)
 
-        #pull out the frame numbers that correspond to the tone file
+        #Prune both the tone vector and the image stack to be the same length, specified by this prune data 
+        n_frames_unpruned = prune_data['OLDframe'].astype(int).max()
 
-        #filter tone data to only include those frames
+        ##Fill in im
+        im_unpruned = np.empty((n_frames_unpruned, im.shape[1], im.shape[2]))
+        im_unpruned[:] = np.nan
+
+        for idx, row in prune_data.iterrows():
+            if row['OLDframe'] <= im_unpruned.shape[0] and row['NEWframe'] <= im.shape[0]:
+                im_unpruned[row['OLDframe']-1,:,:] = im[row['NEWframe']-1,:,:]
+
+        im = im_unpruned
+
+        tones = tones[tones['time'] < (n_frames_unpruned/10)]
+    else:
+        print(tones['time'])
+        print(n_frames)
+        tones = tones[tones['time'] < (n_frames/10)]
+
+    all_tones = ['0.0'] + [str(x) for x in sorted([int(x) for x in list(tones['freq'].unique())])]
+    print('Detected tones', all_tones)
 
     # Do the coarse graining
     try:
@@ -211,8 +236,6 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     cue_indices = 4 + np.arange(0, im_downscaled_.shape[0], 10)
     cue_indices = cue_indices[cue_indices < im_downscaled_.shape[0]]
 
-
-
     labels = np.zeros(im_downscaled_.shape[0])
     labels[cue_indices] = 1
 
@@ -223,6 +246,11 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     tone_labels[labels == 1] = tones['freq'][:len(labels[labels == 1])]
 
     grid_downscaled = im_downscaled_.reshape((-1, grid_dim, grid_dim))
+
+    if use_pruned:
+        #Drop nans
+        tone_labels = tone_labels[~np.isnan(grid_downscaled).any(axis=(1, 2))]
+        grid_downscaled = grid_downscaled[~np.isnan(grid_downscaled).any(axis=(1, 2))]
 
     f1_scores = []
     re_scores = []
