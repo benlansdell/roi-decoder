@@ -24,6 +24,7 @@ def first_set_directories():
     st.session_state['tifcurr_dir'] = last_used['tiff']
     st.session_state['soundcurr_dir'] = last_used['sound']
 
+#On the other hand, refreshing the page seems to reset the session state but keeps the cache, so we have to reset the directories then too
 def force_set_directories():
     print("Setting dirs")
     last_used = get_last_directories_used()
@@ -33,23 +34,24 @@ def force_set_directories():
 def st_main(args):
 
     def plot_button():
-        os.makedirs(os.path.dirname(plot_path), exist_ok = True)
+        os.makedirs(os.path.dirname(output_path), exist_ok = True)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_f1_score.png'
-        fn_out = os.path.join(os.path.dirname(st.session_state['tif_file']), fn_out)
+        os.makedirs(os.path.dirname(os.path.normpath(os.path.join(output_path, fn_out))), exist_ok = True)
+        fn_out = os.path.normpath(os.path.join(output_path, fn_out))
         os.system(f"cp {tmp_path_f1} {fn_out}")
         #fig_f1.savefig(fn_out, transparent=transparent)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_precision.png'
-        fn_out = os.path.join(os.path.dirname(st.session_state['tif_file']), fn_out)
+        fn_out = os.path.normpath(os.path.join(output_path, fn_out))
         os.system(f"cp {tmp_path_pr} {fn_out}")
         #fig_pr.savefig(fn_out, transparent=transparent)
         fn_out = f'{plot_path}_{basename}_localized_decoder_boxsize_{box_size}_nframes_{n_frame:04}_recall.png'
-        fn_out = os.path.join(os.path.dirname(st.session_state['tif_file']), fn_out)
+        fn_out = os.path.normpath(os.path.join(output_path, fn_out))
         os.system(f"cp {tmp_path_re} {fn_out}")
         #fig_re.savefig(fn_out, transparent=transparent)
 
     def results_button():
-        os.makedirs(os.path.dirname(out_path), exist_ok = True)
-        with open(out_path, 'wb') as handle:
+        os.makedirs(os.path.dirname(output_path), exist_ok = True)
+        with open(os.path.join(output_path, out_path), 'wb') as handle:
             pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     #Default values to load
@@ -65,8 +67,7 @@ def st_main(args):
     with st.expander("Input", expanded = True):
         tif_file = st_file_selector(st, key = 'tif', label = 'Choose tif file')
         sound_file = st_file_selector(st, key = 'sound', label = 'Choose sound data')
-        #use_pruned = st.checkbox('Is pruned data', value = False, help = "Check if tif file is a pruned tif file. This will try to find the pruning information in the specified directory, so that frames can be matched with sound data")
-        use_pruned = False
+        use_pruned = st.checkbox('Is pruned data', value = False, help = "Check if tif file is a pruned tif file. This will try to find the pruning information in the specified directory, so that frames can be matched with sound data")
         st.button(label='Load', on_click = lambda: on_load(tif_file, sound_file, use_pruned))
 
     selected_tif = st.session_state['tif_file'] if 'tif_file' in st.session_state else tif_name
@@ -111,10 +112,13 @@ def st_main(args):
         return
 
     if (submit or plot_button or results_button):
+        prune_file = st.session_state['use_pruned'] if 'use_pruned' in st.session_state else use_pruned
+        #Load sound data        
         f1_scores, re_scores, pr_scores, acc_scores, im, n_frame, overall_f1, grid_dim, all_tones = \
                         build_localized_decoder(selected_sound, all_frames, 
                                                 box_size = box_size, n_frames = n_frame,
-                                                scale_factor = scale_factor, im_file=selected_tif)
+                                                scale_factor = scale_factor, im_file=selected_tif,
+                                                prune_dir = args.pruning_dir, use_pruned = prune_file)
         if f1_scores is None:
             return
     else: 
@@ -146,6 +150,12 @@ def st_main(args):
         st.image(tmp_path_re)
 
     with st.expander("Output"):
+        #Default output path
+        output_path = os.path.join(os.path.dirname(selected_tif), 'output')
+        
+        output_path = st_file_selector(st, key = 'outdir', label = 'Choose output directory')
+        output_path = os.path.abspath(os.path.normpath(output_path))
+        print('output path', output_path)
         plot_path = st.text_input('Plot path', value = './roi_decoding_results', help = 'Filename to save the plots. Will save to same directory as selected tiff file')
         out_path = st.text_input('Output file', value = './results.pkl', help = 'Filename to save the results. Will save to same directory as selected tiff file')
         st.button('Save plots', on_click= plot_button)
@@ -164,5 +174,3 @@ if __name__ == '__main__':
 
 #args = parser.parse_args(['--tifname', './demodata/TSeries-07062022-001_rig__d1_512_d2_512_d3_1_order_F_frames_4000_.tif', '--tonefile', './demodata/roiscan1.csv'])
 #st_main(args)
-
-#/home/blansdel/ImageAnalysisScratch/Zakharenko/Jay/forABBAS_BEN/For_validating/DFF/frameNumber_loolup_TSeries-01062022-001-autoclip_gaussin.csv
