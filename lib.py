@@ -166,6 +166,8 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
                 
     try:
         tones = pd.read_csv(tone_file, header = None, names = ['time', 'freq', 'atten'])
+        if type(tones.iloc[0,0]) is str:
+            tones = tones.iloc[1:,:] #Remove the header row
     except:
         try:
             tones = pd.read_csv(tone_file)
@@ -173,6 +175,9 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
         except:
             st.warning("Failed to load tone file. Please check file is a valid csv file.")
             return empty_val
+    tones['time'] = tones['time'].astype(float)
+    tones['freq'] = tones['freq'].astype(float)
+    tones['atten'] = tones['atten'].astype(float)         
 
     if use_pruned:
         #Compute tone vector, and only grab frames where are in OLDframe column in pruning file
@@ -206,10 +211,12 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
 
         im = im_unpruned
 
+        tones = tones[pd.isna(tones['time']) == False]
         tones = tones[tones['time'] < (n_frames_unpruned/10)]
     else:
         print(tones['time'])
         print(n_frames)
+        tones = tones[pd.isna(tones['time']) == False]
         tones = tones[tones['time'] < (n_frames/10)]
 
     all_tones = ['0.0'] + [str(x) for x in sorted([int(x) for x in list(tones['freq'].unique())])]
