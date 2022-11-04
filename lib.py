@@ -166,8 +166,8 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
                 
     try:
         tones = pd.read_csv(tone_file, header = None, names = ['time', 'freq', 'atten'])
-        if type(tones.iloc[0,0]) is str:
-            tones = tones.iloc[1:,:] #Remove the header row
+        if tones.iloc[0,0] == 'Time':
+            tones = tones.iloc[2:,:] #Remove the header row
     except:
         try:
             tones = pd.read_csv(tone_file)
