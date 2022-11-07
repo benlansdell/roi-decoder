@@ -165,16 +165,18 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
         n_frames = im.shape[0]
                 
     try:
-        tones = pd.read_csv(tone_file, header = None, names = ['time', 'freq', 'atten'])
+        tones = pd.read_csv(tone_file, header = None)
         if tones.iloc[0,0] == 'Time':
-            tones = tones.iloc[2:,:] #Remove the header row
-    except:
-        try:
-            tones = pd.read_csv(tone_file)
+            tones.columns = tones.iloc[0,:]
+            tones = tones.iloc[1:,:]
+        tones = tones.iloc[:,:3]
+        if len(tones.columns) == 2:
+            tones.columns = ['time', 'freq']
+        else:
             tones.columns = ['time', 'freq', 'atten']
-        except:
-            st.warning("Failed to load tone file. Please check file is a valid csv file.")
-            return empty_val
+    except:
+        st.warning("Failed to load tone file. Please check file is a valid csv file.")
+        return empty_val
     tones['time'] = tones['time'].astype(float)
     tones['freq'] = tones['freq'].astype(float)
     tones['atten'] = tones['atten'].astype(float)         
