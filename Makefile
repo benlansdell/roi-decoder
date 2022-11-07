@@ -5,3 +5,9 @@ run:
 		#streamlit run --server.fileWatcherType none streamlit_app.py
 		/home/blansdel/anaconda3/bin/conda run -n base streamlit run --server.fileWatcherType none streamlit_app.py
 #The option --server.fileWatcherType none is used to avoid the error 'OSError: [Errno 28] inotify watch limit reached'
+
+deploy:
+		sudo supervisorctl restart roi-decoder_app
+
+dev:
+		/home/blansdel/anaconda3/bin/conda run -n base streamlit run --server.fileWatcherType none streamlit_app.py --server.port 8555
