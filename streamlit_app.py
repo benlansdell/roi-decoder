@@ -94,6 +94,7 @@ def st_main(args):
     n_frame = form.slider("Number of frames", 0, n_frames_total, value = n_frames_total, help = 'Number of frames to use for decoding')
     scale_factor = form.slider("Scale factor", 4, 64, value = 64, step = 8, help = 'Downsample the image by this factor')
     box_size = form.slider("Box size", 1, 10, value = 4, help = 'Size of the box to use for decoding ("pixels" in downsized image)')
+    decoder_offset = form.slider("Offset", -3, 3, value = 0, help = 'Frame relative to the tone to use for decoding')
 
     form.write("Visualisation parameters")
     transparent = form.checkbox("Transparent overlay", value = False, help = 'Overlay the decoded ROI on the original image')
@@ -118,7 +119,8 @@ def st_main(args):
                         build_localized_decoder(selected_sound, all_frames, 
                                                 box_size = box_size, n_frames = n_frame,
                                                 scale_factor = scale_factor, im_file=selected_tif,
-                                                prune_dir = args.pruning_dir, use_pruned = prune_file)
+                                                prune_dir = args.pruning_dir, use_pruned = prune_file,
+                                                decoder_offset = decoder_offset)
         if f1_scores is None:
             return
     else: 
