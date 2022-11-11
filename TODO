@@ -1,11 +1,12 @@
 # TODO
 
 * Support for larger mesoscope images...?
-  Handle the funny strips
-* Bug fix! can't find arg?
 
 # Done
 
+x Support for larger mesoscope images...?
+  Handle the funny strips
+x Bug fix! can't find arg?
 x Option to use additional frames for decoder
 x Choose output path for images
 x Make it so it can handle pruned recordings

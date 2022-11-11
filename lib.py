@@ -179,7 +179,8 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
         return empty_val
     tones['time'] = tones['time'].astype(float)
     tones['freq'] = tones['freq'].astype(float)
-    tones['atten'] = tones['atten'].astype(float)         
+    if 'atten' in tones.columns:    
+        tones['atten'] = tones['atten'].astype(float)         
 
     if use_pruned:
         #Compute tone vector, and only grab frames where are in OLDframe column in pruning file
@@ -225,8 +226,10 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     print('Detected tones', all_tones)
 
     # Do the coarse graining
+    scale_factor_y = int(scale_factor * (im.shape[1] / im.shape[2]))
+
     try:
-        test_downscale = downscale_local_mean(im[0,:,:], (scale_factor, scale_factor))
+        test_downscale = downscale_local_mean(im[0,:,:], (scale_factor_y, scale_factor))
         im_downscaled = np.zeros((im.shape[0], *test_downscale.shape))
     except IndexError:
         IndexError("Couldn't load full tiff stack. Exiting")
@@ -235,7 +238,7 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
 
     for idx in range(im.shape[0]):
 
-        im_downscaled[idx,:,:] = downscale_local_mean(im[idx,:,:], (scale_factor, scale_factor))
+        im_downscaled[idx,:,:] = downscale_local_mean(im[idx,:,:], (scale_factor_y, scale_factor))
         #This is toooo slow
         #im_downscaled[idx,:,:] = resize(im[idx,:,:], im_downscaled.shape[1:])
 
