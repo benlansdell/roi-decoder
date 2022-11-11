@@ -1,17 +1,26 @@
+"""
+Note this takes the blocks, removes the strips and aligns them to get back the original image. 
+
+It currently does not stretch the resulting image to get a square. Such reshaping would add no extra information
+for a decoder to use, so it is not done here.
+
+The decoder should take into account the different sizes blocks.
+"""
+
 import skimage.io 
 import numpy as np
 import argparse 
 
-parser = argparse.ArgumentParser(description='Reshape mesoscope data')
+parser = argparse.ArgumentParser(description='Reshape mesoscope data, removing strips that were added for some reason')
 parser.add_argument('fn_in', type=str, help='Input file')
-parser.add_argument('--fn_out', type=str, help='Output file')
-parser.add_argument('--nblocks', type=float, default=4, help='Number of blocks the mesoscope was split into')
+parser.add_argument('--fn_out', type=str, default = None, help='Output file. If not provided, will be the input file with _reshaped.tif appended')
+parser.add_argument('--n_blocks', type=float, default=4, help='Number of blocks the mesoscope was split into')
 
 def main(args):
 
     fn_in = args.fn_in
     fn_out = args.fn_out
-    n_clusters = args.nblocks - 1
+    n_clusters = args.n_blocks - 1
 
     im = skimage.io.imread(fn_in)
     block_width = im.shape[2]
