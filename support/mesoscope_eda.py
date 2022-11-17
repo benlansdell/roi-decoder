@@ -3,10 +3,13 @@ import skimage.io
 import matplotlib.pyplot as plt
 import numpy as np
 
-fn_in = '../demodata/mesoscope/file_00001_00001.tif' ## 4 blocks, set n_clusters = 3
+#fn_in = '../demodata/mesoscope/file_00001_00001.tif' ## 4 blocks, set n_clusters = 3
 #fn_in = '../demodata/mesoscope/file_00002_00001.tif' ## 4 blocks, set n_clusters = 3
 #fn_in = '../demodata/mesoscope/file_00003_00001.tif' ## 2 blocks, set n_clusters = 1
 #fn_in = '../demodata/mesoscope/file_00004_00001.tif' ## 2 blocks, set n_clusters = 1
+
+#fn_in = '../demodata/mesoscope_w_sound/11102022_00001_00001.tif' ## 4 blocks, set n_clusters = 3
+fn_in = '../demodata/mesoscope_w_sound/11102022_00007_00001.tif' ## 4 blocks, set n_clusters = 3
 
 quant = 0.01
 n_clusters = 3
@@ -64,4 +67,8 @@ im_reshaped.shape
 #This should be stretched??
 plt.imshow(im_reshaped[0, :, :])
 plt.show()
+
+# %%
+fn_out = fn_in.replace('.tif', '_reshaped.tif')
+skimage.io.imsave(fn_out, im_reshaped)
 # %%

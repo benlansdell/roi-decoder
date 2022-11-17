@@ -52,15 +52,21 @@ def warn(*args, **kwargs):
     pass
 warnings.warn = warn
 
-def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_labels = None, transparent = False, plotbounds = None):
+def plot_decoder(plt_data, im, grid_dim = 8, grid_dim_x = 8, title = None, box_size = 4, 
+                 freq_labels = None, transparent = False, plotbounds = None, target_x = 2000, target_y = 2000):
     units = grid_dim*2
+    units_x = grid_dim_x*2
 
     n_freqs = plt_data.shape[2]-1
     n_plots_y = n_freqs//2
 
     demo_frame = 10
     fig, ax = plt.subplots(n_plots_y, 2,figsize=(16,8*n_plots_y))
-    im_dim = im.shape[1]
+    im_dim_x = im.shape[2]
+
+    #im_dim = im.shape[1]
+    #Reshape im_dim to match ratio of target_x and target_y
+    im_dim = int(im_dim_x * target_y / target_x)
 
     max_score = np.max(plt_data[:,:,1:])
 
@@ -76,28 +82,28 @@ def plot_decoder(plt_data, im, grid_dim = 8, title = None, box_size = 4, freq_la
 
         #Draw a sample frame
         if transparent == False:
-            ax[i,j].imshow(im[demo_frame,:,:], cmap = 'gray', extent = (0, im_dim, 0, im_dim))
+            ax[i,j].imshow(im[demo_frame,:,:], cmap = 'gray', extent = (0, im_dim_x, 0, im_dim))
         else:
             #Draw blank space
-            ax[i,j].imshow(np.zeros((*im.shape[1:], 4)), extent = (0, im_dim, 0, im_dim))
+            ax[i,j].imshow(np.zeros((*im.shape[1:], 4)), extent = (0, im_dim_x, 0, im_dim))
 
-        axins = ax[i,j].inset_axes([(box_size-1)/units, (box_size-1)/units, (units-2*box_size+2)/units, (units-2*box_size+2)/units])
+        axins = ax[i,j].inset_axes([(box_size-1)/units_x, (box_size-1)/units_x, (units-2*box_size+2)/units, (units-2*box_size+2)/units])
 
         masked_data = np.ma.masked_where(plt_data[:,:,idx+1] < mask_below, plt_data[:,:,idx+1])
 
         cols = axins.imshow(masked_data, 
-                            extent = (im_dim*(box_size/units), im_dim*(1-box_size/units), im_dim*(box_size/units), im_dim*(1-box_size/units)), 
+                            extent = (im_dim_x*(box_size/units_x), im_dim_x*(1-box_size/units_x), im_dim*(box_size/units), im_dim*(1-box_size/units)), 
                             alpha = 0.6, 
                             vmin = bounds[0], 
                             vmax = bounds[1], 
                             cmap = 'plasma')
 
-        axins.axis('off');
+        axins.axis('off')
 
         if not transparent:
-            ax[i,j].axis('off');
+            ax[i,j].axis('off')
         else:
-            ax[i,j].axis('on');
+            ax[i,j].axis('on')
             ax[i,j].set_xticks([])
             ax[i,j].set_yticks([])
             ax[i,j].set_xticklabels([])
@@ -155,7 +161,7 @@ def load_image(tif_name : str) -> np.ndarray:
 @st.cache(suppress_st_warning=True)
 def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
                             scale_factor = 128, use_pruned = False, im_file = None,
-                            prune_dir = None, decoder_offset = 0):
+                            prune_dir = None, decoder_offset = 0, target_y = 2000, target_x = 2000):
 
     empty_val = [None]*9
 
@@ -225,8 +231,11 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     all_tones = ['0.0'] + [str(x) for x in sorted([int(x) for x in list(tones['freq'].unique())])]
     print('Detected tones', all_tones)
 
+    y = (target_y/target_x)*im.shape[2]
+    first_scaling_y = y/im.shape[1]
+
     # Do the coarse graining
-    scale_factor_y = int(scale_factor * (im.shape[1] / im.shape[2]))
+    scale_factor_y = int(scale_factor//first_scaling_y)
 
     try:
         test_downscale = downscale_local_mean(im[0,:,:], (scale_factor_y, scale_factor))
@@ -235,12 +244,10 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
         IndexError("Couldn't load full tiff stack. Exiting")
 
     grid_dim = im_downscaled.shape[1]
+    grid_dim_x = im_downscaled.shape[2]
 
     for idx in range(im.shape[0]):
-
         im_downscaled[idx,:,:] = downscale_local_mean(im[idx,:,:], (scale_factor_y, scale_factor))
-        #This is toooo slow
-        #im_downscaled[idx,:,:] = resize(im[idx,:,:], im_downscaled.shape[1:])
 
     # Difference the data
     im_downscaled_ = np.reshape(im_downscaled, (im_downscaled.shape[0], -1))
@@ -260,7 +267,7 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     tone_labels = tone_labels[:len(labels)]
     tone_labels[labels == 1] = tones['freq'][:len(labels[labels == 1])]
 
-    grid_downscaled = im_downscaled_.reshape((-1, grid_dim, grid_dim))
+    grid_downscaled = im_downscaled_.reshape((-1, grid_dim, grid_dim_x))
 
     if use_pruned:
         #Drop nans
@@ -276,6 +283,7 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
 
     ## Box size calcs
     n_grid_pts = grid_dim+1-box_size
+    n_grid_pts_x = grid_dim_x+1-box_size
 
     unique_tones = np.unique(tone_labels)
     unique_tones = sorted(unique_tones[unique_tones != '0.0'], key = lambda x: int(float(x)))
@@ -288,7 +296,7 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
         re_row = []
         pr_row = []
         acc_row = []
-        for j in range(n_grid_pts):
+        for j in range(n_grid_pts_x):
             data = grid_downscaled[:,i:(i+box_size),j:(j+box_size)].reshape((-1, box_size*box_size))
             splitter = KFold(n_splits=5, shuffle = False)
             model = MLModel()
@@ -331,32 +339,36 @@ def build_localized_decoder(tone_file, im, box_size = 4, n_frames = None,
     pred_prob_all = cross_val_predict(model, im_downscaled_, tone_labels, cv = splitter)
     overall_f1 = f1_score(tone_labels, pred_prob_all, average = None, labels = all_tones)
    
-    return f1_scores, re_scores, pr_scores, acc_scores, im, n_frames, overall_f1, grid_dim, all_tones
+    return f1_scores, re_scores, pr_scores, acc_scores, im, n_frames, overall_f1, grid_dim, grid_dim_x, all_tones
 
 #The problem with caching this is that it doesn't replot the same settings twice
 #@st.cache(hash_funcs={matplotlib.figure.Figure: hash})
-def make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, box_size, all_tones, transparent, plotbounds):
+def make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, grid_dim_x, box_size, all_tones, transparent, plotbounds,
+                target_x, target_y):
     fig_f1, _ = plot_decoder(f1_scores,
                         im,
                         grid_dim = grid_dim,
+                        grid_dim_x = grid_dim_x, 
                         box_size = box_size,
                         freq_labels = all_tones,
                         transparent = transparent,
-                        plotbounds = plotbounds)
+                        plotbounds = plotbounds, target_x = target_x, target_y = target_y)
     fig_pr, _ = plot_decoder(pr_scores,
                         im,
                         grid_dim = grid_dim,
+                        grid_dim_x = grid_dim_x,
                         box_size = box_size,
                         freq_labels = all_tones,
                         transparent = transparent,
-                        plotbounds = plotbounds)
+                        plotbounds = plotbounds, target_x = target_x, target_y = target_y)
     fig_re, _ = plot_decoder(re_scores,
                         im,
                         grid_dim = grid_dim,
+                        grid_dim_x = grid_dim_x,
                         box_size = box_size,
                         freq_labels = all_tones,
                         transparent = transparent,
-                        plotbounds = plotbounds)
+                        plotbounds = plotbounds, target_x = target_x, target_y = target_y)
 
     tmp_path = 'tmp_plots'
     tmp_f1_path = os.path.join(tmp_path, 'f1.png')

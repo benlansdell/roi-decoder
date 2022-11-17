@@ -67,6 +67,10 @@ def st_main(args):
     with st.expander("Input", expanded = True):
         tif_file = st_file_selector(st, key = 'tif', label = 'Choose tif file')
         sound_file = st_file_selector(st, key = 'sound', label = 'Choose sound data')
+        target_y = st.text_input('Height:', value = 2000, help = 'Input image field of view dimensions, if view isn\'t square.')
+        target_x = st.text_input('Width:', value = 2400, help = 'Input image field of view dimensions, if view isn\'t square.')
+        target_y = int(target_y)
+        target_x = int(target_x)
         use_pruned = st.checkbox('Is pruned data', value = False, help = "Check if tif file is a pruned tif file. This will try to find the pruning information in the specified directory, so that frames can be matched with sound data")
         st.button(label='Load', on_click = lambda: on_load(tif_file, sound_file, use_pruned))
 
@@ -115,12 +119,12 @@ def st_main(args):
     if (submit or plot_button or results_button):
         prune_file = st.session_state['use_pruned'] if 'use_pruned' in st.session_state else use_pruned
         #Load sound data        
-        f1_scores, re_scores, pr_scores, acc_scores, im, n_frame, overall_f1, grid_dim, all_tones = \
+        f1_scores, re_scores, pr_scores, acc_scores, im, n_frame, overall_f1, grid_dim, grid_dim_x, all_tones = \
                         build_localized_decoder(selected_sound, all_frames, 
                                                 box_size = box_size, n_frames = n_frame,
                                                 scale_factor = scale_factor, im_file=selected_tif,
                                                 prune_dir = args.pruning_dir, use_pruned = prune_file,
-                                                decoder_offset = decoder_offset)
+                                                decoder_offset = decoder_offset, target_y = target_y, target_x = target_x)
         if f1_scores is None:
             return
     else: 
@@ -137,7 +141,18 @@ def st_main(args):
 
     basename = os.path.basename(selected_tif).split('.')[0]
 
-    tmp_path_f1, tmp_path_pr, tmp_path_re = make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, box_size, all_tones[1:], transparent, plotbounds)
+    tmp_path_f1, tmp_path_pr, tmp_path_re = make_plots(f1_scores, 
+                                                       pr_scores, 
+                                                       re_scores, 
+                                                       im, 
+                                                       grid_dim, 
+                                                       grid_dim_x, 
+                                                       box_size, 
+                                                       all_tones[1:], 
+                                                       transparent, 
+                                                       plotbounds,
+                                                       target_x,
+                                                       target_y)
 
     with st.expander("F1", expanded = True):
         st.markdown('<div style="text-align: center;">F1 scores</div>', unsafe_allow_html=True)
