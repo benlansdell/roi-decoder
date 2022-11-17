@@ -14,7 +14,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Reshape mesoscope data, removing strips that were added for some reason')
 parser.add_argument('fn_in', type=str, help='Input file')
 parser.add_argument('--fn_out', type=str, default = None, help='Output file. If not provided, will be the input file with _reshaped.tif appended')
-parser.add_argument('--n_blocks', type=float, default=4, help='Number of blocks the mesoscope was split into')
+parser.add_argument('--n_blocks', type=int, default=4, help='Number of blocks the mesoscope was split into')
 
 def main(args):
 
