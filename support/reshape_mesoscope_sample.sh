@@ -11,8 +11,9 @@
 #
 # The decoder should take into account the different sizes blocks.
 
+PYTHON=/home/blansdel/anaconda3/envs/caiman/bin/python
 FILE_IN="/media/ResearchHome/zakhagrp/projects/JayImagingData/common/ROI_GUI/for Ben/11102022_00007_00001.tif"
-FILE_OUT="/media/ResearchHome/zakhagrp/projects/JayImagingData/common/ROI_GUI/for Ben/11102022_00007_00001_reshaped.tif"
+FILE_OUT="./11102022_00007_00001_reshaped.tif"
 N_BLOCKS=4
 
-./mesoscopy_reshape.py $FILE_IN $FILE_OUT $N_BLOCKS
+$PYTHON ./mesoscope_reshape.py "$FILE_IN" --fn_out "$FILE_OUT" --n_blocks $N_BLOCKS
