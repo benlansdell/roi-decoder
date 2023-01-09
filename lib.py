@@ -22,7 +22,6 @@ from sklearn.linear_model import LogisticRegression
 from aicsimageio.readers import TiffGlobReader
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-
 MLModel = LogisticRegression
 MASK_BELOW = 0.01
 
@@ -32,6 +31,11 @@ def get_last_directories_used():
     if os.path.exists(last_directories_used_file):
         with open(last_directories_used_file, 'r') as f:
             directories = json.load(f)
+        #If directories don't exist, default to .
+        if not os.path.exists(directories['tiff']):
+            directories['tiff'] = '.'
+        if not os.path.exists(directories['sound']):
+            directories['sound'] = '.'
     else:
         print("Can't find file, defaulting")
         directories = {'tiff': '.', 'sound': '.'}
@@ -40,8 +44,8 @@ def get_last_directories_used():
 def save_last_directories_used(tiff_directory, sound_directory):
     d = {'tiff': tiff_directory,
          'sound': sound_directory}
-    if os.path.exists(last_directories_used_file):
-        os.remove(last_directories_used_file)
+    #if os.path.exists(last_directories_used_file):
+    #    os.remove(last_directories_used_file)
 
     json_object = json.dumps(d, indent=4)
     with open(last_directories_used_file, "w") as outfile:
