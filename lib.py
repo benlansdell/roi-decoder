@@ -25,7 +25,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 MLModel = LogisticRegression
 MASK_BELOW = 0.01
 
-last_directories_used_file = 'last_directory_used.json'
+last_directories_used_file = '/tmp/last_directory_used.json'
 def get_last_directories_used():
     #Load json file last_directory_used_file to directories
     if os.path.exists(last_directories_used_file):
@@ -374,7 +374,7 @@ def make_plots(f1_scores, pr_scores, re_scores, im, grid_dim, grid_dim_x, box_si
                         transparent = transparent,
                         plotbounds = plotbounds, target_x = target_x, target_y = target_y)
 
-    tmp_path = 'tmp_plots'
+    tmp_path = '/tmp/tmp_plots'
     tmp_f1_path = os.path.join(tmp_path, 'f1.png')
     tmp_pr_path = os.path.join(tmp_path, 'pr.png')
     tmp_re_path = os.path.join(tmp_path, 're.png')
