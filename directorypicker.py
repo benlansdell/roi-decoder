@@ -25,6 +25,10 @@ def st_file_selector(st_placeholder, path='.', label='Select a file/folder', key
     else:
         base_path = st.session_state[key+'curr_dir']
 
+    #Sanity check...
+    if not os.path.exists(base_path):
+        base_path = '.'
+
     files = sorted(os.listdir(base_path))
     files.insert(0, '..')
     files.insert(0, '.')
